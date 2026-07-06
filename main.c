@@ -13,19 +13,10 @@ void logger(const char *log)
 
 int main()
 {
-    RootSolver rs = rootsolver_create(f, logger); // <-- f, SIN paréntesis ni &
+    RootSolver rs = rootsolver_create(f, logger);
 
     double sol;
     RootSolverStatus status = rootsolver_bisection(&rs, &sol, 0.0, 2.0, 1e-9, 100);
-
-    if (status == ROOTSOLVER_OK)
-    {
-        printf("Solucion encontrada: %.10f\n", sol);
-    }
-    else
-    {
-        printf("Error: codigo %d\n", status);
-    }
 
     return 0;
 }
