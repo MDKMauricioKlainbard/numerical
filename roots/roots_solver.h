@@ -19,6 +19,8 @@ RootSolver rootsolver_create(FuncPtr f, LogFunc log);
 
 // Closed Methods
 RootSolverStatus rootsolver_bisection(const RootSolver* rs, double *sol, double a, double b, double tol, int max_iter);
+RootSolverStatus rootsolver_regulafalsi(const RootSolver *rs, double *sol, double a, double b, double tol, int max_iter);
 
-
+// Open Methods
+RootSolverStatus rootsolver_fixedpoint(const RootSolver *rs, double *sol, double xi, double tol, int max_iter);
 #endif

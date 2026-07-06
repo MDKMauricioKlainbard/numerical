@@ -48,12 +48,13 @@ RootSolverStatus rootsolver_bisection(const RootSolver *rs, double *sol, double 
     double approx;
     double approx_old = a;
     double fapprox;
+    double err_rel;
 
     while (i <= max_iter)
     {
         approx = (a + b) / 2.0;
         fapprox = rs->f(approx);
-        double err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS);
+        err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS) * 100.0;
 
         if (err_rel < tol)
         {
@@ -102,6 +103,7 @@ RootSolverStatus rootsolver_regulafalsi(const RootSolver *rs, double *sol, doubl
     double approx;
     double approx_old = a;
     double fapprox;
+    double err_rel;
 
     int left_repeat = 0;
     int right_repeat = 0;
@@ -110,7 +112,7 @@ RootSolverStatus rootsolver_regulafalsi(const RootSolver *rs, double *sol, doubl
     {
         approx = b - (fb * (a - b)) / (fa - fb);
         fapprox = rs->f(approx);
-        double err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS);
+        err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS) * 100.0;
 
         if (err_rel < tol)
         {
@@ -149,5 +151,32 @@ RootSolverStatus rootsolver_regulafalsi(const RootSolver *rs, double *sol, doubl
     }
 
     log_msg(rs, "[REGULA FALSI] - Method failed after %d iterations. The procedure was unsuccessful.", max_iter);
+    return ROOTSOLVER_NO_CONVERGENCE;
+}
+
+RootSolverStatus rootsolver_fixedpoint(const RootSolver *rs, double *sol, double xi, double tol, int max_iter)
+{
+    double approx;
+    double approx_old = xi;
+    int i = 1;
+    double err_rel;
+
+    while (i <= max_iter)
+    { 
+        approx = rs->f(approx_old);
+        err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS) * 100.0;
+
+        if (err_rel < tol)
+        {
+            log_msg(rs, "[FIXED POINT] - Solution found: %.10f", approx);
+            *sol = approx;
+            return ROOTSOLVER_OK;
+        }
+
+        approx_old = approx;
+        i += 1;
+    }
+
+    log_msg(rs, "[FIXED POINT] - Method failed after %d iterations. The procedure was unsuccessful.", max_iter);
     return ROOTSOLVER_NO_CONVERGENCE;
 }
