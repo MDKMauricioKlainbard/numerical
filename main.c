@@ -16,7 +16,7 @@ int main()
     RootSolver rs = rootsolver_create(f, logger);
 
     double sol;
-    RootSolverStatus status = rootsolver_bisection(&rs, &sol, 0.0, 2.0, 1e-9, 100);
+    RootSolverStatus status = rootsolver_bisection(&rs, &sol, 0.0, 2.0, 5e-9, 100);
 
     return 0;
 }
