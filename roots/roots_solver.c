@@ -19,15 +19,29 @@ static void log_msg(const RootSolver *rs, const char *fmt, ...)
     rs->log(buf);
 }
 
-RootSolver rootsolver_create(FuncPtr f, LogFunc log)
+static double compute_derivative(const RootSolver *rs, double x)
+{
+    if (rs->df != NULL)
+    {
+        return rs->df(x);
+    }
+    else
+    {
+        double h = 1e-6;
+        return (rs->f(x + h) - rs->f(x)) / h;
+    }
+}
+
+RootSolver rootsolver_create(FuncPtr f, FuncPtr df, LogFunc log)
 {
     RootSolver rs;
     rs.f = f;
+    rs.df = df;
     rs.log = log;
     return rs;
 }
 
-RootSolverStatus rootsolver_bisection(const RootSolver *rs, double *sol, double a, double b, double tol, int max_iter)
+RootSolverStatus rootsolver_bisection(const RootSolver *rs, double *const sol, double a, double b, const double tol, const int max_iter)
 {
     if (a >= b)
     {
@@ -82,7 +96,7 @@ RootSolverStatus rootsolver_bisection(const RootSolver *rs, double *sol, double 
     return ROOTSOLVER_NO_CONVERGENCE;
 }
 
-RootSolverStatus rootsolver_regulafalsi(const RootSolver *rs, double *sol, double a, double b, double tol, int max_iter)
+RootSolverStatus rootsolver_regulafalsi(const RootSolver *rs, double *const sol, double a, double b, const double tol, const int max_iter)
 {
     if (a >= b)
     {
@@ -154,15 +168,14 @@ RootSolverStatus rootsolver_regulafalsi(const RootSolver *rs, double *sol, doubl
     return ROOTSOLVER_NO_CONVERGENCE;
 }
 
-RootSolverStatus rootsolver_fixedpoint(const RootSolver *rs, double *sol, double xi, double tol, int max_iter)
+RootSolverStatus rootsolver_fixedpoint(const RootSolver *rs, double *const sol, double approx, const double tol, const int max_iter)
 {
-    double approx;
-    double approx_old = xi;
+    double approx_old = approx;
     int i = 1;
     double err_rel;
 
     while (i <= max_iter)
-    { 
+    {
         approx = rs->f(approx_old);
         err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS) * 100.0;
 
@@ -178,5 +191,43 @@ RootSolverStatus rootsolver_fixedpoint(const RootSolver *rs, double *sol, double
     }
 
     log_msg(rs, "[FIXED POINT] - Method failed after %d iterations. The procedure was unsuccessful.", max_iter);
+    return ROOTSOLVER_NO_CONVERGENCE;
+}
+
+RootSolverStatus rootsolver_newtonraphson(const RootSolver *rs, double *const sol, double approx, const double tol, const int max_iter)
+{
+    int i = 1;
+    double approx_old = approx;
+    double err_rel;
+    double fx;
+    double dfx;
+
+    while (i <= max_iter)
+    {
+        fx = rs->f(approx_old);
+        dfx = compute_derivative(rs, approx_old);
+
+        if (fabs(dfx) < SAFETY_EPS)
+        {
+            log_msg(rs, "[NEWTON-RAPHSON] - Derivative too close to zero, aborting.");
+            return ROOTSOLVER_NO_CONVERGENCE;
+        }
+
+        approx = approx_old - fx / dfx;
+
+        err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS) * 100.0;
+
+        if (err_rel < tol)
+        {
+            log_msg(rs, "[NEWTON-RAPHSON] - Solution found: %.10f", approx);
+            *sol = approx;
+            return ROOTSOLVER_OK;
+        }
+
+        approx_old = approx;
+        i += 1;
+    }
+
+    log_msg(rs, "[NEWTON-RAPHSON] - Method failed after %d iterations. The procedure was unsuccessful.", max_iter);
     return ROOTSOLVER_NO_CONVERGENCE;
 }
