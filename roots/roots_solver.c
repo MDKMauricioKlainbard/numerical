@@ -32,6 +32,44 @@ static double compute_derivative(const RootSolver *rs, double x)
     }
 }
 
+static RootSolverStatus validate_bracket(const RootSolver *rs, double a, double b, double *fa, double *fb, const char *method_name)
+{
+    if (a >= b)
+    {
+        log_msg(rs, "[%s] - Invalid interval: a must be less than b", method_name);
+        return ROOTSOLVER_INVALID_INTERVAL;
+    }
+
+    *fa = rs->f(a);
+    *fb = rs->f(b);
+
+    if ((*fa * *fb) > 0.0)
+    {
+        log_msg(rs, "[%s] - No solution in interval [%.10f, %.10f]", method_name, a, b);
+        return ROOTSOLVER_INVALID_INTERVAL;
+    }
+
+    return ROOTSOLVER_OK;
+}
+
+static RootSolverStatus report_success(const RootSolver *rs, double *const sol, double approx, const char *method_name)
+{
+    log_msg(rs, "[%s] - Solution found: %.10f", method_name, approx);
+    *sol = approx;
+    return ROOTSOLVER_OK;
+}
+
+static RootSolverStatus report_failure(const RootSolver *rs, const char *method_name, int max_iter)
+{
+    log_msg(rs, "[%s] - Method failed after %d iterations. The procedure was unsuccessful.", method_name, max_iter);
+    return ROOTSOLVER_NO_CONVERGENCE;
+}
+
+static double relative_error(double approx, double approx_old)
+{
+    return fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS) * 100.0;
+}
+
 RootSolver rootsolver_create(FuncPtr f, FuncPtr df, LogFunc log)
 {
     RootSolver rs;
@@ -43,39 +81,23 @@ RootSolver rootsolver_create(FuncPtr f, FuncPtr df, LogFunc log)
 
 RootSolverStatus rootsolver_bisection(const RootSolver *rs, double *const sol, double a, double b, const double tol, const int max_iter)
 {
-    if (a >= b)
-    {
-        log_msg(rs, "[BISECTION] - Invalid interval: a must be less than b");
-        return ROOTSOLVER_INVALID_INTERVAL;
-    }
-
-    double fa = rs->f(a);
-    double fb = rs->f(b);
-
-    if ((fa * fb) > 0.0)
-    {
-        log_msg(rs, "[BISECTION] - No solution in interval [%.10f, %.10f]", a, b);
-        return ROOTSOLVER_INVALID_INTERVAL;
-    }
+    double fa, fb;
+    RootSolverStatus status = validate_bracket(rs, a, b, &fa, &fb, "BISECTION");
+    if (status != ROOTSOLVER_OK)
+        return status;
 
     int i = 1;
-    double approx;
     double approx_old = a;
-    double fapprox;
-    double err_rel;
+
+    double approx, fapprox;
 
     while (i <= max_iter)
     {
         approx = (a + b) / 2.0;
         fapprox = rs->f(approx);
-        err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS) * 100.0;
 
-        if (err_rel < tol)
-        {
-            log_msg(rs, "[BISECTION] - Solution found: %.10f", approx);
-            *sol = approx;
-            return ROOTSOLVER_OK;
-        }
+        if (relative_error(approx, approx_old) < tol)
+            return report_success(rs, sol, approx, "BISECTION");
 
         approx_old = approx;
         i += 1;
@@ -92,32 +114,21 @@ RootSolverStatus rootsolver_bisection(const RootSolver *rs, double *const sol, d
         }
     }
 
-    log_msg(rs, "[BISECTION] - Method failed after %d iterations. The procedure was unsuccessful.", max_iter);
-    return ROOTSOLVER_NO_CONVERGENCE;
+    return report_failure(rs, "BISECTION", max_iter);
 }
 
 RootSolverStatus rootsolver_regulafalsi(const RootSolver *rs, double *const sol, double a, double b, const double tol, const int max_iter)
 {
-    if (a >= b)
-    {
-        log_msg(rs, "[REGULA FALSI] - Invalid interval: a must be less than b");
-        return ROOTSOLVER_INVALID_INTERVAL;
-    }
+    double fa, fb;
 
-    double fa = rs->f(a);
-    double fb = rs->f(b);
-
-    if ((fa * fb) > 0.0)
-    {
-        log_msg(rs, "[REGULA FALSI] - No solution in interval [%.10f, %.10f]", a, b);
-        return ROOTSOLVER_INVALID_INTERVAL;
-    }
+    RootSolverStatus status = validate_bracket(rs, a, b, &fa, &fb, "REGULA FALSI");
+    if (status != ROOTSOLVER_OK)
+        return status;
 
     int i = 1;
-    double approx;
     double approx_old = a;
-    double fapprox;
-    double err_rel;
+
+    double approx, fapprox;
 
     int left_repeat = 0;
     int right_repeat = 0;
@@ -126,14 +137,9 @@ RootSolverStatus rootsolver_regulafalsi(const RootSolver *rs, double *const sol,
     {
         approx = b - (fb * (a - b)) / (fa - fb);
         fapprox = rs->f(approx);
-        err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS) * 100.0;
 
-        if (err_rel < tol)
-        {
-            log_msg(rs, "[REGULA FALSI] - Solution found: %.10f", approx);
-            *sol = approx;
-            return ROOTSOLVER_OK;
-        }
+        if (relative_error(approx, approx_old) < tol)
+            return report_success(rs, sol, approx, "REGULA FALSI");
 
         approx_old = approx;
         i += 1;
@@ -164,43 +170,34 @@ RootSolverStatus rootsolver_regulafalsi(const RootSolver *rs, double *const sol,
         }
     }
 
-    log_msg(rs, "[REGULA FALSI] - Method failed after %d iterations. The procedure was unsuccessful.", max_iter);
-    return ROOTSOLVER_NO_CONVERGENCE;
+    return report_failure(rs, "REGULA FALSI", max_iter);
 }
 
 RootSolverStatus rootsolver_fixedpoint(const RootSolver *rs, double *const sol, double approx, const double tol, const int max_iter)
 {
     double approx_old = approx;
     int i = 1;
-    double err_rel;
 
     while (i <= max_iter)
     {
         approx = rs->f(approx_old);
-        err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS) * 100.0;
 
-        if (err_rel < tol)
-        {
-            log_msg(rs, "[FIXED POINT] - Solution found: %.10f", approx);
-            *sol = approx;
-            return ROOTSOLVER_OK;
-        }
+        if (relative_error(approx, approx_old) < tol)
+            return report_success(rs, sol, approx, "FIXED POINT");
 
         approx_old = approx;
         i += 1;
     }
 
-    log_msg(rs, "[FIXED POINT] - Method failed after %d iterations. The procedure was unsuccessful.", max_iter);
-    return ROOTSOLVER_NO_CONVERGENCE;
+    return report_failure(rs, "FIXED POINT", max_iter);
 }
 
 RootSolverStatus rootsolver_newtonraphson(const RootSolver *rs, double *const sol, double approx, const double tol, const int max_iter)
 {
     int i = 1;
     double approx_old = approx;
-    double err_rel;
-    double fx;
-    double dfx;
+
+    double fx, dfx;
 
     while (i <= max_iter)
     {
@@ -215,19 +212,12 @@ RootSolverStatus rootsolver_newtonraphson(const RootSolver *rs, double *const so
 
         approx = approx_old - fx / dfx;
 
-        err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS) * 100.0;
-
-        if (err_rel < tol)
-        {
-            log_msg(rs, "[NEWTON-RAPHSON] - Solution found: %.10f", approx);
-            *sol = approx;
-            return ROOTSOLVER_OK;
-        }
+        if (relative_error(approx, approx_old) < tol)
+            return report_success(rs, sol, approx, "NEWTON-RAPHSON");
 
         approx_old = approx;
         i += 1;
     }
 
-    log_msg(rs, "[NEWTON-RAPHSON] - Method failed after %d iterations. The procedure was unsuccessful.", max_iter);
-    return ROOTSOLVER_NO_CONVERGENCE;
+    return report_failure(rs, "NEWTON-RAPHSON", max_iter);
 }
