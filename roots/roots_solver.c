@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#define SAFETY_EPS 1e-12
+
 static void log_msg(const RootSolver *rs, const char *fmt, ...)
 {
     if (!rs->log)
@@ -44,20 +46,23 @@ RootSolverStatus rootsolver_bisection(const RootSolver *rs, double *sol, double 
 
     int i = 1;
     double approx;
+    double approx_old = a;
     double fapprox;
 
     while (i <= max_iter)
     {
         approx = (a + b) / 2.0;
         fapprox = rs->f(approx);
+        double err_rel = fabs(approx - approx_old) / (fabs(approx) + SAFETY_EPS);
 
-        if (fabs(fapprox) < tol)
+        if (err_rel < tol)
         {
             log_msg(rs, "[BISECTION] - Solution found: %.10f", approx);
             *sol = approx;
             return ROOTSOLVER_OK;
         }
 
+        approx_old = approx;
         i += 1;
 
         if (fa * fapprox > 0.0)
