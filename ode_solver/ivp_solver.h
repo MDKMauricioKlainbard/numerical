@@ -9,11 +9,20 @@ typedef struct
     OdeFunc f;
     int n; // Dimension
     LogFunc log;
+    double *dydt_buffer;
 } IVPSolver;
 
-IVPSolver ivpsolver_create(OdeFunc f, int n, LogFunc log);
+typedef enum
+{
+    IVPSOLVER_OK = 0,
+    IVPSOLVER_ALLOC_FAILED = 1
+} IVPSolverStatus;
+
+IVPSolverStatus ivpsolver_create(IVPSolver *ivp, OdeFunc f, int n, LogFunc log);
 
 void ivpsolver_step_euler(const IVPSolver *ivp, double t, double *y, double dt);
 void ivpsolver_step_rk4(const IVPSolver *ivp, double t, double *y, double dt);
+
+void ivpsolver_destroy(IVPSolver *ivp);
 
 #endif
