@@ -9,7 +9,11 @@ typedef struct
     OdeFunc f;
     int n; // Dimension
     LogFunc log;
-    double *dydt_buffer;
+    double *k1;
+    double *k2;
+    double *k3;
+    double *k4;
+    double *y_temp;
 } IVPSolver;
 
 typedef enum
