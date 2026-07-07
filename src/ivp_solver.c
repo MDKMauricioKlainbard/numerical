@@ -1,4 +1,4 @@
-#include "ivp_solver.h"
+#include <celestial/ivp_solver.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>

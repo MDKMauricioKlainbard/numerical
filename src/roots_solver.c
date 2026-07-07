@@ -1,4 +1,4 @@
-#include "roots_solver.h"
+#include <celestial/roots_solver.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdarg.h>
