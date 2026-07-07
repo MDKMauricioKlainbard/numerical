@@ -14,5 +14,6 @@ typedef struct
 IVPSolver ivpsolver_create(OdeFunc f, int n, LogFunc log);
 
 void ivpsolver_step_euler(const IVPSolver *ivp, double t, double *y, double dt);
+void ivpsolver_step_rk4(const IVPSolver *ivp, double t, double *y, double dt);
 
 #endif
