@@ -13,4 +13,6 @@ target_include_directories(celestial PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(celestial PUBLIC m)
+if(NOT WIN32)
+    target_link_libraries(celestial PUBLIC m)
+endif()
